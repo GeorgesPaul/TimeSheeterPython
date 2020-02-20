@@ -1,7 +1,7 @@
 from __future__ import print_function
 import datetime
 import re
-
+import calendar
 import dateutil
 import dateutil.parser
 import pickle
@@ -9,6 +9,8 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+import pandas as pd
+from tabulate import tabulate
 
 # About:
 # This script downloads Google calendar events, finds all events with a "@something" tag
@@ -26,13 +28,24 @@ from google.auth.transport.requests import Request
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
+
 def days_hours_minutes(td):
     return td.days, td.seconds//3600, (td.seconds//60)%60
+
 
 def duration_hours_minutes(td):
     days, hours, minutes = days_hours_minutes(td)
     hours = (days *24) + hours
     return hours, minutes
+
+
+def add_months(sourcedate, months):
+    month = sourcedate.month - 1 + months
+    year = sourcedate.year + month // 12
+    month = month % 12 + 1
+    day = min(sourcedate.day, calendar.monthrange(year,month)[1])
+    return datetime.date(year, month, day)
+
 
 def main():
     """Shows basic usage of the Google Calendar API.
@@ -65,11 +78,14 @@ def main():
     # Calendar ID. You can find this ID when you go to google calendar (each calendar has it's own ID)
     CalID = 'xaop.com_g07i0og0nf1tortohmakm4cmak@group.calendar.google.com'
     #search string (@tag) + what the tag stands for
-    client_short_long = ("@sma", "SmartQare")
+    #client_short_long = ("@sma", "SmartQare")
+    client_short_long = ("@hve", "High Voltage Engineering Europa B.V.")
     # date and time string formats:
     dayformat = "%d"
     timeformat = "%H:%M"
     datetimeformat = "%d-%m-%Y %H:%M"
+    # Time zone is Amsterdam
+    timeZone = 'GMT+01:00'
 
     ###########################################
 
@@ -77,22 +93,40 @@ def main():
     # Call the Calendar API
     #now = datetime.datetime.utcnow().isoformat() # 'Z' indicates UTC time
     now = datetime.datetime.utcnow()
+    #last month
     firstDaylastMonth = now.replace(day=1, hour=0, minute=1) - datetime.timedelta(days=1)
     lastDaylastMonth = firstDaylastMonth.replace(hour=23, minute=59)
     firstDaylastMonth = firstDaylastMonth.replace(day=1)
+
+    # other date placeholder
+    # this month:
+    firstDaylastMonth = now.replace(day=1, hour=0, minute=1) #actually first day this month
+    lastDayDateThisMonth = calendar.monthrange(now.year, now.month)[1]
+    lastDaylastMonth = now.replace(day=lastDayDateThisMonth, hour=23, minute=59) #actually last day this month
 
     # add Z
     now = now.isoformat() + 'Z'
     lastDaylastMonth = lastDaylastMonth.isoformat() + 'Z'
     firstDaylastMonth = firstDaylastMonth.isoformat() + 'Z'
 
+    # custom date:
+    #lastDaylastMonth = "2019-11-30T23:59:55.783958Z"
+    #firstDaylastMonth = "2019-11-23T23:59:55.783958Z"
+
+    # added timeZone
     events_result = service.events().list(calendarId=CalID, timeMin=firstDaylastMonth, timeMax=lastDaylastMonth,
                                         maxResults=1000, singleEvents=True,
-                                        orderBy='startTime').execute()
+                                        orderBy='startTime',
+                                        timeZone=timeZone).execute()
     events = events_result.get('items', [])
 
     total_duration = datetime.timedelta()
+
     print("Day" + "\t" + "Start time" + "\t" + "End time" + "\t" + "Duration (hours:minutes)" + "\t" + "Description" + "\t")
+
+    #TODO: convert to dataframe
+    dfcolumns = ["Day", "Start time", "End time", "Duration (hours:minutes)", "Description"]
+    time_table = pd.DataFrame(columns=dfcolumns)
 
     if not events:
         print('No upcoming events found.')
@@ -100,9 +134,13 @@ def main():
         #print header of table column names
 
         eventsummary = event['summary']
-        if eventsummary.find(client_short_long[0]) > -1:
+        #if eventsummary.find(client_short_long[0]) > -1:
+        if re.search(client_short_long[0], eventsummary, re.IGNORECASE):  #removed case sensitivity
             #remove client abbreviation. Delete's any word that partially matches the string in client_short_long[0]
-            eventsummary = re.sub(r"" + client_short_long[0] + "\w+", "", eventsummary).lstrip() #eventsummary.replace(client_short_long[0], "")
+            #added flags=re.I (for case insensitive match) and \W
+            # Do this in 2 passes with \W and \w, because I do not get how regex works :P
+            eventsummary = re.sub(r"" + client_short_long[0] + "\W+", "", eventsummary, flags=re.I).lstrip() #eventsummary.replace(client_short_long[0], "")
+            eventsummary = re.sub(r"" + client_short_long[0] + "\w+", "", eventsummary, flags=re.I).lstrip()
             # get datetime string of start of event
             start = event['start'].get('dateTime', event['start'].get('date'))
             # get datetime string of end of event
@@ -124,12 +162,17 @@ def main():
                     duration_hours) + ":" + str(duration_minutes) + "\t" + eventsummary)
             # if event within the same day:
             else:
+                row = pd.Series([start_parsed.strftime(dayformat), start_parsed.strftime(timeformat), end_parsed.strftime(timeformat), (str(duration_hours) + ":" + str(duration_minutes)),  eventsummary]) #, index = time_table.columns
+                time_table = time_table.append(row, ignore_index=True)
                 print(start_parsed.strftime(dayformat) + "\t" + start_parsed.strftime(timeformat) + "\t" + end_parsed.strftime(timeformat) + "\t" + str(
                     duration_hours) + ":" + str(duration_minutes) + "\t" + eventsummary)
+
+    print(tabulate(time_table, tablefmt="presto"))
     hours, minutes = duration_hours_minutes(total_duration)
 
     print("Total duration was: " + str(hours) + " hours and " + str(minutes) + " minutes")
 
+    #print(str(time_table))
 
 
 if __name__ == '__main__':
