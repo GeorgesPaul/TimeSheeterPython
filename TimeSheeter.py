@@ -98,8 +98,8 @@ def main():
     # Calendar ID. You can find this ID when you go to google calendar (each calendar has it's own ID)
     CalID = 'xaop.com_g07i0og0nf1tortohmakm4cmak@group.calendar.google.com'
     #search string (@tag) + what the tag stands for
-    #client_short_long = ("@sma", "SmartQare")
-    client_short_long = ("@wav", "Wavin")
+    #client_short_long = ("@sma", "xxxxx")
+    client_short_long = ("@wav", "xxxx")
     strFreelancer = "Georges Meinders"
     # date and time string formats:
     dayformat = "%d"
