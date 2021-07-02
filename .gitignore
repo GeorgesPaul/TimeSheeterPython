@@ -1,3 +1,8 @@
 /client_secrets.json
 /token.pickle
 /venv/
+/.idea/
+
+*.pdf
+*.docx
+*.json
