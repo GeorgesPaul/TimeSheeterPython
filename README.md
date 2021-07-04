@@ -6,8 +6,13 @@ This script downloads Google calendar events, finds all events with a "@clientna
 time sheet table with: 
 `| Day of month | Start_time | End_time | Duration | Week_nr | Week_duration | Description`
 
+Registering your worked hours could look something like the screenshot below. The @fake and @fake2 correspond to client name abbreviations.
+Full client names are stored in a clients.ini file (if the full name in the ini file is "Faker Client" it will automatically be matched to the @fake tag and Fake2fake to the @fake2 tag).
+
+![Example input](./images/example_input1.png)
+
 The output can be a ascii table or a pdf based on a .docx template (work in progress).
-An example of the output: 
+An example of the output (not corresponding to the above Google Calendar example): 
 
 ![Example output](./images/example_output1.png)
 
