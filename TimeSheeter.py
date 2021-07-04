@@ -399,6 +399,8 @@ def parseargs():
     if (is_date(args['start']) and is_date(args['end'])):
         start_date = parse(args['start'], dayfirst=True, fuzzy=fuzzy)
         end_date = parse(args['end'], dayfirst=True, fuzzy=fuzzy)
+        # set end_date to end of day instead of start of day (to include end date in report)
+        end_date = end_date.replace(hour=23, minute=59, second=59)
     elif args['this']:
         start_date = first_day_this_month
         end_date = last_day_this_month
