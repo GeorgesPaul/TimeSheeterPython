@@ -2,7 +2,11 @@
 /token.pickle
 /venv/
 /.idea/
+/.git/
+/.ssh/
 
 *.pdf
 *.docx
 *.json
+*.bat
+*.pub
