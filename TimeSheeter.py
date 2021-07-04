@@ -283,7 +283,7 @@ def get_timesheet(start_date: str = first_day_last_month, end_date : str = last_
     print("If you don't want a certain tag/client to be included, remove the client from client.ini file or add # in front of the client name.")
 
     if not events:
-        print("No events found between " + start_date + " and " + end_date)
+        print("No events found between " + str(start_date) + " and " + str(end_date))
     else:
         # iterate through all events for each tag found (generating 1 report per tag/client)
         for cl_name in client_name_tag_dct:
@@ -372,10 +372,12 @@ def parseargs():
     # Add arguments to the parser
     #start date
     all_args.add_argument("-s", "--start", required=False, default="",
-                          help="Start date. Script will assume time of day 0:00:00 unless otherwise specified.")
+                          help="Start date. Script will assume time of day 0:00:00 unless otherwise specified."
+                               "The date format is day first. So day/month/year.")
     #end date
     all_args.add_argument("-e", "--end", required=False, default="",
-                          help="End date. Script will assume time of day 23:59:59 unless otherwise specified.")
+                          help="End date. Script will assume time of day 23:59:59 unless otherwise specified."
+                          "The date format is day first. So day/month/year.")
     # use this month?
     all_args.add_argument("-l", "--last", action='store_true', default=False,
                           help="Generate time sheet for all of last month.")
@@ -393,9 +395,10 @@ def parseargs():
     args = vars(all_args.parse_args())
 
     # get start and end date from parsed arguments:
+    fuzzy = False # disable fuzzy datetime string parsing (fuzzy = "blabalbal 2021")
     if (is_date(args['start']) and is_date(args['end'])):
-        start_date = args['start']
-        end_date = args['end']
+        start_date = parse(args['start'], dayfirst=True, fuzzy=fuzzy)
+        end_date = parse(args['end'], dayfirst=True, fuzzy=fuzzy)
     elif args['this']:
         start_date = first_day_this_month
         end_date = last_day_this_month
