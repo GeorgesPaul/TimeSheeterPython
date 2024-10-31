@@ -14,6 +14,7 @@ import configparser
 import argparse
 from dataclasses import dataclass, field
 import logging
+from enum import Enum, auto
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,6 +28,15 @@ class TimeSheetData:
     client_name: str
     total_duration: datetime.timedelta = field(default_factory=lambda: datetime.timedelta())
     time_sheet_df: pd.DataFrame = field(default_factory=lambda: pd.DataFrame())
+
+
+class OutputFormat(Enum):
+    TABLE = "table"
+    CSV = "csv"
+    TOTAL = "total"
+
+    def __str__(self):
+        return self.value
 
 
 class TimesheetGenerator:
@@ -135,9 +145,10 @@ class TimesheetGenerator:
         tag_list = self.get_strlist_of_tags(event_summary_list, "@")
         client_name_tag_dict = self.get_client_name_dict(tag_list, client_list)
 
-        logging.info("The following @tag client name matches were made: %s", str(client_name_tag_dict))
-        print(
-            "If you don't want a certain tag/client to be included, remove the client from client.ini file or add # in front of the client name.")
+        if self.output_format == OutputFormat.TABLE:
+            logging.info("The following @tag client name matches were made: %s", str(client_name_tag_dict))
+            print(
+                "If you don't want a certain tag/client to be included, remove the client from client.ini file or add # in front of the client name.")
 
         time_tables = []
         for cl_name, cl_tags in client_name_tag_dict.items():
@@ -155,7 +166,7 @@ class TimesheetGenerator:
         for event in events:
             event_summary = event['summary']
             if any(tag.lower() in event_summary.lower() for tag in client_tags):
-                if time_table.time_sheet_df.empty:
+                if time_table.time_sheet_df.empty and self.output_format == OutputFormat.TABLE:
                     logging.info("Generating time sheet for client: %s", client_name)
 
                 event_summary = self.clean_event_summary(event_summary, client_tags)
@@ -208,7 +219,15 @@ class TimesheetGenerator:
             'Description': [event_summary]
         })
 
-    def generate_timesheet(self, start_date, end_date, week_totals=False):
+    def generate_timesheet(self, start_date, end_date, week_totals=False, output_format: OutputFormat = OutputFormat.TABLE):
+        self.output_format = output_format
+        
+        # Set logging level based on output format
+        if output_format in [OutputFormat.CSV, OutputFormat.TOTAL]:
+            logging.getLogger().setLevel(logging.WARNING)
+        else:  # TABLE format
+            logging.getLogger().setLevel(logging.INFO)
+        
         events = self.get_gcal_events(start_date, end_date)
         if not events:
             logging.info("No events found between %s and %s", start_date, end_date)
@@ -218,7 +237,7 @@ class TimesheetGenerator:
 
         for sheet in time_sheets:
             self.add_totals_to_sheet(sheet, week_totals)
-            self.print_sheet_summary(sheet)
+            self.print_sheet_summary(sheet, output_format)
 
         return time_sheets
 
@@ -243,12 +262,18 @@ class TimesheetGenerator:
         sheet.time_sheet_df["Duration"] = sheet.time_sheet_df["Duration"].apply(
             lambda x: f"{x.total_seconds() // 3600:02.0f}:{(x.total_seconds() // 60) % 60:02.0f}")
 
-    def print_sheet_summary(self, sheet):
-        print(f"\nTime sheet for client: {sheet.client_name}")
-        total_hours, remainder = divmod(sheet.total_duration.total_seconds(), 3600)
-        total_minutes = remainder // 60
-        print(f"Total duration for client was: {total_hours:.0f} hours and {total_minutes:.0f} minutes.")
-        print(tabulate(sheet.time_sheet_df, headers=sheet.time_sheet_df.columns, tablefmt="presto"))
+    def print_sheet_summary(self, sheet, output_format: OutputFormat):
+        if output_format == OutputFormat.TOTAL:
+            total_hours = sheet.total_duration.total_seconds() / 3600
+            print(f"{total_hours:.2f}")
+        elif output_format == OutputFormat.CSV:
+            print(sheet.time_sheet_df.to_csv(index=False))
+        else:  # TABLE
+            print(f"\nTime sheet for client: {sheet.client_name}")
+            total_hours, remainder = divmod(sheet.total_duration.total_seconds(), 3600)
+            total_minutes = remainder // 60
+            print(f"Total duration for client was: {total_hours:.0f} hours and {total_minutes:.0f} minutes.")
+            print(tabulate(sheet.time_sheet_df, headers=sheet.time_sheet_df.columns, tablefmt="presto"))
 
 
 def main():
@@ -259,6 +284,11 @@ def main():
     parser.add_argument("-t", "--this", action="store_true", help="Generate time sheet for this month")
     parser.add_argument("-w", "--weektotals", action="store_true", help="Include week totals in the report")
     parser.add_argument("-lc", "--list-calendars", action="store_true", help="List available calendars")
+    parser.add_argument("-f", "--format", 
+                       type=OutputFormat, 
+                       choices=list(OutputFormat), 
+                       default=OutputFormat.TABLE,
+                       help="Output format (table, csv, or total)")
     args = parser.parse_args()
 
     generator = TimesheetGenerator()
@@ -279,7 +309,7 @@ def main():
         start_date = generator.first_day_last_month
         end_date = generator.last_day_last_month
 
-    generator.generate_timesheet(start_date, end_date, args.weektotals)
+    generator.generate_timesheet(start_date, end_date, args.weektotals, args.format)
 
 
 if __name__ == '__main__':
