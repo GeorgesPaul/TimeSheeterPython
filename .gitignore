@@ -1,5 +1,8 @@
+clients.ini
+config.ini
 /client_secrets.json
 /token.pickle
+key.pub
 /venv/
 /.idea/
 /.git/
