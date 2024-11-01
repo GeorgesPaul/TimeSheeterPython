@@ -220,6 +220,7 @@ class TimesheetGenerator:
         duration_str = f"{duration_event.total_seconds() // 3600:02.0f}:{(duration_event.total_seconds() // 60) % 60:02.0f}"
         week_dur_str = f"{week_dur.total_seconds() // 3600:02.0f}:{(week_dur.total_seconds() // 60) % 60:02.0f}"
         return pd.DataFrame({
+            'Date': [start_parsed.strftime("%d-%m-%Y")],
             'Day': [start_parsed.strftime("%d")],
             'Start_time': [start_parsed.strftime("%H:%M")],
             'End_time': [end_parsed.strftime("%H:%M")],
