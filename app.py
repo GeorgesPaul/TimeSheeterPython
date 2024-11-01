@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
-from wtforms import DateField, SubmitField
+from wtforms import DateField, SubmitField, BooleanField
 from wtforms.validators import DataRequired
 from dateutil.parser import parse
 import subprocess
@@ -13,6 +13,7 @@ app.config['SECRET_KEY'] = 'your_secret_key_here'  # Change this to a secret key
 class DateForm(FlaskForm):
     start_date = DateField('Start Date', format='%Y-%m-%d', validators=[DataRequired()])
     end_date = DateField('End Date', format='%Y-%m-%d', validators=[DataRequired()])
+    week_totals = BooleanField('Include Week Totals', default=True, render_kw={'checked': True})
     submit = SubmitField('Generate Timesheet')
 
 
@@ -28,7 +29,7 @@ def index():
         timesheets = generator.generate_timesheet(parse(start_date_str, dayfirst=True),
                                                   parse(end_date_str, dayfirst=True).replace(hour=23, minute=59,
                                                                                              second=59),
-                                                  week_totals=False)
+                                                  week_totals=form.week_totals.data)
 
         # Assuming you want to display the first timesheet (if multiple)
         if timesheets:

@@ -15,6 +15,7 @@ import argparse
 from dataclasses import dataclass, field
 import logging
 from enum import Enum, auto
+import yaml
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,12 +49,21 @@ class TimesheetGenerator:
         self.last_day_this_month = (self.first_day_this_month + relativedelta(months=1)) - datetime.timedelta(days=1)
 
         self.config = self.load_config()
-        self.client_list = self.get_clients()
+        self.yaml_data = self.load_yaml()
+        self.client_list = list(self.yaml_data['Clients'].keys())
 
     def load_config(self):
         config = configparser.ConfigParser()
         config.read('config.ini')
         return config
+    
+    def load_yaml(self):
+        try:
+            with open('clients.yaml', 'r') as file:
+                return yaml.safe_load(file)
+        except Exception as e:
+            logging.error("Error reading clients.yaml: %s", str(e))
+            raise
 
     def list_calendars(self):
         creds = self.get_credentials()
