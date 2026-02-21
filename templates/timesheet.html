@@ -1,33 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timesheet Generator</title>
-    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-    <script src="https://code.jquery.com/jquery-3.6.0.js"></script>
-    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
-    <script>
-        $(document).ready(function(){
-            $("#start_date").datepicker({ dateFormat: 'yy-mm-dd' });
-            $("#end_date").datepicker({ dateFormat: 'yy-mm-dd' });
-        });
-    </script>
 </head>
+
 <body>
     <h2>Timesheet Generator</h2>
     <form method="POST">
         {{ form.hidden_tag() }}
         {{ form.start_date.label }} {{ form.start_date() }}
         {{ form.end_date.label }} {{ form.end_date() }}
-        {{ form.week_totals.label }} {{ form.week_totals() }} 
+        {{ form.week_totals.label }} {{ form.week_totals() }}
         {{ form.submit() }}
     </form>
     {% if client_name %}
-        <h3>Timesheet for {{ client_name }} ({{ total_hours }})</h3>
+    <h3>Timesheet for {{ client_name }} ({{ total_hours }})</h3>
     {% endif %}
     {% if table %}
-        {{ table|safe }}
+    {{ table|safe }}
     {% endif %}
 </body>
+
 </html>
