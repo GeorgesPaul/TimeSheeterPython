@@ -35,12 +35,19 @@ def index():
         end_date_str = end_date.strftime('%d/%m/%Y')
 
         # Generate Timesheet
-        generator = TimesheetGenerator()
-        timesheets = generator.generate_timesheet(
-            parse(start_date_str, dayfirst=True),
-            parse(end_date_str, dayfirst=True).replace(hour=23, minute=59, second=59),
-            week_totals=form.week_totals.data
-        )
+        try:
+            generator = TimesheetGenerator()
+            timesheets = generator.generate_timesheet(
+                parse(start_date_str, dayfirst=True),
+                parse(end_date_str, dayfirst=True).replace(hour=23, minute=59, second=59),
+                week_totals=form.week_totals.data
+            )
+        except Exception as e:
+            return render_template('timesheet.html',
+                                   table=f"Error generating timesheet: {str(e)}",
+                                   client_name="",
+                                   total_hours="",
+                                   form=form)
 
         if timesheets:
             timesheet = timesheets[0]

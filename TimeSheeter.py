@@ -94,13 +94,24 @@ class TimesheetGenerator:
             raise
 
     def get_credentials(self):
+        from google.auth.exceptions import RefreshError
         creds = None
         if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
-                creds = pickle.load(token)
+            try:
+                with open('token.pickle', 'rb') as token:
+                    creds = pickle.load(token)
+            except Exception as e:
+                logging.warning(f"Failed to load token.pickle: {e}")
+                creds = None
+                
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
+                try:
+                    creds.refresh(Request())
+                except RefreshError:
+                    logging.warning("Refresh token expired or invalid. Restarting auth process.")
+                    flow = InstalledAppFlow.from_client_secrets_file('client_secrets.json', SCOPES)
+                    creds = flow.run_local_server(port=0)
             else:
                 flow = InstalledAppFlow.from_client_secrets_file('client_secrets.json', SCOPES)
                 creds = flow.run_local_server(port=0)
