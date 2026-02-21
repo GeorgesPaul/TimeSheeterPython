@@ -19,3 +19,5 @@ key.pub
 __pycache__/
 __pycache__/*.pyc
 __pycache__/TimeSheeter.cpython-39.pyc
+uv_out.txt
+.venv_old/Scripts/python.exe

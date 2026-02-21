@@ -186,7 +186,8 @@ class TimesheetGenerator:
                 previous_week = int(week_nr)
 
                 row = self.create_event_row(start_parsed, end_parsed, duration_event, week_nr, week_dur, event_summary)
-                time_table.time_sheet_df = time_table.time_sheet_df.append(row, ignore_index=True)
+                #time_table.time_sheet_df = time_table.time_sheet_df.append(row, ignore_index=True) deprecated
+                time_table.time_sheet_df = pd.concat([time_table.time_sheet_df, row], ignore_index=True)
                 time_table.total_duration += duration_event
 
         return time_table
