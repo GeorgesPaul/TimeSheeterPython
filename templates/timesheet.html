@@ -5,9 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timesheet Generator</title>
+    <style>
+        body {
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.dark-mode {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+
+        body.dark-mode table {
+            color: #e0e0e0;
+        }
+
+        body.dark-mode input,
+        body.dark-mode select {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+
+        body.dark-mode input[type="submit"] {
+            background-color: #444;
+            cursor: pointer;
+        }
+
+        .theme-switch-wrapper {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 
 <body>
+    <div class="theme-switch-wrapper">
+        <label for="theme-checkbox" style="margin-right: 8px;">Dark Mode</label>
+        <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this.checked)" />
+    </div>
+
     <h2>Timesheet Generator</h2>
     <form method="POST">
         {{ form.hidden_tag() }}
@@ -28,6 +65,26 @@
     {{ ts.table|safe }}
     {% endfor %}
     {% endif %}
+    <script>
+        function toggleTheme(isDark) {
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // On load
+        const currentTheme = localStorage.getItem('theme');
+        // Default to dark mode unless explicitly set to light
+        if (currentTheme !== 'light') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('theme-checkbox').checked = true;
+            localStorage.setItem('theme', 'dark');
+        }
+    </script>
 </body>
 
 </html>
