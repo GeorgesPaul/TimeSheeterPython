@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
 from wtforms import (DateField, SubmitField, BooleanField, SelectMultipleField,
-                     SelectField, FloatField, TextAreaField)
+                     SelectField, StringField)
 from wtforms.validators import DataRequired, Optional
 from dateutil.parser import parse
 from datetime import datetime, timedelta, date
@@ -58,14 +58,9 @@ class DateForm(FlaskForm):
     col_description   = BooleanField('Description',    default=True)
     submit = SubmitField('Generate Timesheet and Invoice')
     # Simple invoice fields
-    simple_client      = SelectField('Client', choices=[], validators=[Optional()])
-    simple_hours       = FloatField('Hours', validators=[Optional()],
-                                    render_kw={'type': 'number', 'step': '0.25',
-                                               'min': '0', 'placeholder': '0.00'})
-    simple_description = TextAreaField('Description', validators=[Optional()],
-                                       render_kw={'rows': '5',
-                                                  'placeholder': 'Description of services rendered...'})
-    simple_submit = SubmitField('Generate Simple Invoice')
+    invoice_number = StringField('Invoice Number', default='00000000000', validators=[Optional()])
+    simple_client  = SelectField('Client', choices=[], validators=[Optional()])
+    simple_submit  = SubmitField('Generate Simple Invoice')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -86,52 +81,70 @@ def index():
         for key, data in current_clients_data.get('Clients', {}).items()
     }
 
-    def render(error=None, timesheets_data=None):
+    def render(error=None, timesheets_data=None, simple_rows=None):
         return render_template('timesheet.html', form=form,
                                client_rates=client_rates,
-                               error=error, timesheets_data=timesheets_data)
+                               error=error, timesheets_data=timesheets_data,
+                               simple_rows=simple_rows)
 
     # --- Simple invoice ---
     if request.method == 'POST' and form.simple_submit.data:
-        inv_date     = form.invoice_date.data
-        client_key   = form.simple_client.data
-        hours        = form.simple_hours.data
-        desc_raw     = (form.simple_description.data or '').strip()
+        inv_date    = form.invoice_date.data
+        client_key  = form.simple_client.data
+        invoice_num = form.invoice_number.data or '00000000000'
+        hours_list  = request.form.getlist('simple_hours[]')
+        desc_list   = request.form.getlist('simple_description[]')
 
         if not inv_date:
             return render(error="Invoice date is required.")
         if not client_key:
             return render(error="Please select a client for the simple invoice.")
-        if not hours or hours <= 0:
-            return render(error="Please enter a valid number of hours.")
 
         client_data = current_clients_data['Clients'].get(client_key)
         if not client_data:
             return render(error=f"Client '{client_key}' not found in clients.yaml.")
 
-        hourly_rate  = float(client_data.get('hourly_rate', 90.0))
-        currency     = client_data.get('currency', '€')
-        total_price  = hours * hourly_rate
-        price_str    = f"{hourly_rate:.2f}".replace('.', ',')
-        logo_path    = os.path.abspath('templates/logo.jpg')
-        # Preserve line breaks in the PDF description
-        desc_html    = escape(desc_raw).replace('\n', Markup('<br>'))
+        hourly_rate = float(client_data.get('hourly_rate', 90.0))
+        currency    = client_data.get('currency', '€')
+        logo_path   = os.path.abspath('templates/logo.jpg')
+        price_str   = f"{hourly_rate:.2f}".replace('.', ',')
+
+        items = []
+        total_price = 0.0
+        for h_str, desc_raw in zip(hours_list, desc_list):
+            try:
+                hours = float(h_str) if h_str.strip() else 0.0
+            except ValueError:
+                hours = 0.0
+            if hours <= 0:
+                continue
+            item_total   = hours * hourly_rate
+            total_price += item_total
+            desc_html    = escape(desc_raw.strip()).replace('\n', Markup('<br>'))
+            items.append({
+                'quantity':    f'{hours:.2f} hours',
+                'description': desc_html,
+                'price':       price_str,
+                'total':       f'{item_total:.2f}',
+                'vat_rate':    '0,00',
+            })
+
+        all_rows = [{'hours': h, 'description': d} for h, d in zip(hours_list, desc_list)]
+
+        if not items:
+            return render(error="Please enter at least one row with a valid number of hours.",
+                          simple_rows=all_rows)
 
         invoice_data = {
-            'client': client_data,
-            'invoice_date': inv_date.strftime('%d-%m-%Y'),
-            'due_date': (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
-            'reference': 'Georges Meinders',
-            'items': [{
-                'quantity': f'{hours:.2f} hours',
-                'description': desc_html,
-                'price': price_str,
-                'total': f'{total_price:.2f}',
-                'vat_rate': '0,00',
-            }],
+            'client':               client_data,
+            'invoice_number':       invoice_num,
+            'invoice_date':         inv_date.strftime('%d-%m-%Y'),
+            'due_date':             (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
+            'reference':            'Georges Meinders',
+            'items':                items,
             'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
-            'total_amount': f'{currency} {total_price:.2f}',
-            'logo_path': logo_path,
+            'total_amount':         f'{currency} {total_price:.2f}',
+            'logo_path':            logo_path,
         }
 
         invoice_html = render_template('invoice.html', **invoice_data)
@@ -149,7 +162,7 @@ def index():
         except Exception as e:
             return render(error=f"Error generating simple invoice: {str(e)}")
 
-        return render()
+        return render(simple_rows=all_rows)
 
     # --- Timesheet invoice ---
     if form.validate_on_submit():
@@ -208,6 +221,7 @@ def index():
                 inv_date = form.invoice_date.data
                 invoice_data = {
                     'client': client_data,
+                    'invoice_number': form.invoice_number.data or '00000000000',
                     'invoice_date': inv_date.strftime('%d-%m-%Y'),
                     'due_date': (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
                     'reference': 'Georges Meinders',

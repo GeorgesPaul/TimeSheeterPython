@@ -8,6 +8,8 @@
     <style>
         body {
             transition: background-color 0.3s, color 0.3s;
+            margin: 16px;
+            font-family: Arial, sans-serif;
         }
 
         body.dark-mode {
@@ -26,8 +28,11 @@
             border: 1px solid #555;
         }
 
-        body.dark-mode input[type="submit"] {
+        body.dark-mode input[type="submit"],
+        body.dark-mode button {
             background-color: #444;
+            color: #fff;
+            border-color: #666;
             cursor: pointer;
         }
 
@@ -37,23 +42,11 @@
             border: 1px solid #555;
         }
 
-        .simple-invoice-section {
-            margin-top: 24px;
-            padding: 14px 18px;
-            border: 1px solid #aaa;
-            border-radius: 4px;
-            display: inline-block;
+        body.dark-mode .simple-invoice-box {
+            border-color: #555;
         }
 
-        .simple-invoice-section h3 {
-            margin: 0 0 12px 0;
-        }
-
-        #simple_total_preview {
-            font-weight: bold;
-        }
-
-        body.dark-mode .simple-invoice-section {
+        body.dark-mode #timesheet-columns {
             border-color: #555;
         }
 
@@ -61,6 +54,45 @@
             display: flex;
             align-items: center;
             margin-bottom: 15px;
+        }
+
+        .shared-fields {
+            margin-bottom: 16px;
+        }
+
+        .shared-fields .field-group {
+            display: inline-block;
+            margin-right: 24px;
+            vertical-align: top;
+        }
+
+        .shared-fields label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .main-layout {
+            display: flex;
+            align-items: flex-start;
+            gap: 32px;
+        }
+
+        .timesheet-section {
+            flex: 0 0 auto;
+        }
+
+        .simple-invoice-box {
+            margin-left: auto;
+            flex: 0 0 auto;
+            min-width: 400px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            padding: 14px 18px;
+        }
+
+        .simple-invoice-box h3 {
+            margin: 0 0 12px 0;
         }
 
         #timesheet-columns {
@@ -87,8 +119,60 @@
             margin: 2px 8px 2px 0;
         }
 
-        body.dark-mode #timesheet-columns {
-            border-color: #555;
+        .invoice-row-headers {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 2px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .invoice-row-headers .hdr-hours {
+            width: 72px;
+            flex-shrink: 0;
+        }
+
+        .invoice-row-headers .hdr-desc {
+            flex: 1;
+        }
+
+        .invoice-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .invoice-row input[type="number"] {
+            width: 72px;
+            flex-shrink: 0;
+        }
+
+        .invoice-row textarea {
+            flex: 1;
+            resize: vertical;
+            min-height: 36px;
+        }
+
+        .invoice-row .delete-btn {
+            cursor: pointer;
+            background: none;
+            border: 1px solid #aaa;
+            border-radius: 3px;
+            padding: 2px 7px;
+            font-size: 14px;
+            line-height: 1.4;
+            align-self: center;
+            flex-shrink: 0;
+        }
+
+        .add-row-btn {
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        #simple_total_preview {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -99,45 +183,89 @@
         <input type="checkbox" id="theme-checkbox" onchange="toggleTheme(this.checked)" />
     </div>
 
-    <h2>Timesheet Generator</h2>
+    <h2>Invoice &amp; Timesheet Generator</h2>
+
     <form method="POST">
         {{ form.hidden_tag() }}
-        <p>{{ form.invoice_date.label }}<br> {{ form.invoice_date() }}</p>
-        <p>{{ form.start_date.label }}<br> {{ form.start_date() }}</p>
-        <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
-        <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
-        <p>{{ form.week_totals.label }} {{ form.week_totals() }}</p>
-        <p>
-            {{ form.append_timesheet.label }}
-            {{ form.append_timesheet(onchange='toggleTimesheetColumns(this.checked)') }}
-        </p>
-        <fieldset id="timesheet-columns">
-            <legend>Columns to include</legend>
-            <span class="col-row">{{ form.col_date() }} {{ form.col_date.label }}</span>
-            <span class="col-row">{{ form.col_duration() }} {{ form.col_duration.label }}</span>
-            <span class="col-row">{{ form.col_description() }} {{ form.col_description.label }}</span>
-            <br>
-            <span class="col-row">{{ form.col_start_time() }} {{ form.col_start_time.label }}</span>
-            <span class="col-row">{{ form.col_end_time() }} {{ form.col_end_time.label }}</span>
-            <span class="col-row">{{ form.col_day() }} {{ form.col_day.label }}</span>
-            <span class="col-row">{{ form.col_day_total() }} {{ form.col_day_total.label }}</span>
-            <br>
-            <span class="col-row">{{ form.col_week_nr() }} {{ form.col_week_nr.label }}</span>
-            <span class="col-row">{{ form.col_week_duration() }} {{ form.col_week_duration.label }}</span>
-            <span class="col-row">{{ form.col_week_total() }} {{ form.col_week_total.label }}</span>
-        </fieldset>
-        <p>{{ form.submit() }}</p>
 
-        <div class="simple-invoice-section">
-            <h3>Simple Invoice</h3>
-            <p>{{ form.simple_client.label }}<br> {{ form.simple_client() }}</p>
-            <p>
-                {{ form.simple_hours.label }}<br>
-                {{ form.simple_hours() }}
-            </p>
-            <p>Total: <span id="simple_total_preview">—</span></p>
-            <p>{{ form.simple_description.label }}<br> {{ form.simple_description() }}</p>
-            <p>{{ form.simple_submit() }}</p>
+        <!-- Shared fields: invoice date + invoice number -->
+        <div class="shared-fields">
+            <span class="field-group">
+                {{ form.invoice_date.label }}
+                {{ form.invoice_date() }}
+            </span>
+            <span class="field-group">
+                {{ form.invoice_number.label }}
+                {{ form.invoice_number(size=14) }}
+            </span>
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="main-layout">
+
+            <!-- Left: Timesheet Invoice -->
+            <div class="timesheet-section">
+                <h3>Timesheet Invoice</h3>
+                <p>{{ form.start_date.label }}<br> {{ form.start_date() }}</p>
+                <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
+                <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
+                <p>{{ form.week_totals.label }} {{ form.week_totals() }}</p>
+                <p>
+                    {{ form.append_timesheet.label }}
+                    {{ form.append_timesheet(onchange='toggleTimesheetColumns(this.checked)') }}
+                </p>
+                <fieldset id="timesheet-columns">
+                    <legend>Columns to include</legend>
+                    <span class="col-row">{{ form.col_date() }} {{ form.col_date.label }}</span>
+                    <span class="col-row">{{ form.col_duration() }} {{ form.col_duration.label }}</span>
+                    <span class="col-row">{{ form.col_description() }} {{ form.col_description.label }}</span>
+                    <br>
+                    <span class="col-row">{{ form.col_start_time() }} {{ form.col_start_time.label }}</span>
+                    <span class="col-row">{{ form.col_end_time() }} {{ form.col_end_time.label }}</span>
+                    <span class="col-row">{{ form.col_day() }} {{ form.col_day.label }}</span>
+                    <span class="col-row">{{ form.col_day_total() }} {{ form.col_day_total.label }}</span>
+                    <br>
+                    <span class="col-row">{{ form.col_week_nr() }} {{ form.col_week_nr.label }}</span>
+                    <span class="col-row">{{ form.col_week_duration() }} {{ form.col_week_duration.label }}</span>
+                    <span class="col-row">{{ form.col_week_total() }} {{ form.col_week_total.label }}</span>
+                </fieldset>
+                <p>{{ form.submit() }}</p>
+            </div>
+
+            <!-- Right: Simple Invoice -->
+            <div class="simple-invoice-box">
+                <h3>Simple Invoice</h3>
+                <p>{{ form.simple_client.label }}<br> {{ form.simple_client() }}</p>
+
+                <div class="invoice-row-headers">
+                    <span class="hdr-hours">Hours</span>
+                    <span class="hdr-desc">Description</span>
+                </div>
+
+                <div id="invoice-rows">
+                    {% if simple_rows %}
+                    {% for row in simple_rows %}
+                    <div class="invoice-row">
+                        <input type="number" name="simple_hours[]" min="0" step="0.25" placeholder="0.00" value="{{ row.hours }}">
+                        <textarea name="simple_description[]" rows="2" placeholder="Description...">{{ row.description }}</textarea>
+                        <button type="button" class="delete-btn" onclick="deleteRow(this)"{% if simple_rows|length <= 1 %} style="display:none"{% endif %}>✕</button>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="invoice-row">
+                        <input type="number" name="simple_hours[]" min="0" step="0.25" placeholder="0.00">
+                        <textarea name="simple_description[]" rows="2" placeholder="Description..."></textarea>
+                        <button type="button" class="delete-btn" onclick="deleteRow(this)" style="display:none">✕</button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <button type="button" class="add-row-btn" onclick="addRow()">＋ Add Row</button>
+
+                <p>Total: <span id="simple_total_preview">—</span></p>
+                <p>{{ form.simple_submit() }}</p>
+            </div>
+
         </div>
     </form>
 
@@ -151,6 +279,7 @@
     {{ ts.table|safe }}
     {% endfor %}
     {% endif %}
+
     <script>
         function toggleTimesheetColumns(show) {
             document.getElementById('timesheet-columns').style.display = show ? 'inline-block' : 'none';
@@ -166,36 +295,67 @@
             }
         }
 
-        // On load
+        // On load: restore theme
         const currentTheme = localStorage.getItem('theme');
-        // Default to dark mode unless explicitly set to light
         if (currentTheme !== 'light') {
             document.body.classList.add('dark-mode');
             document.getElementById('theme-checkbox').checked = true;
             localStorage.setItem('theme', 'dark');
         }
 
-        // Show/hide column selector based on append_timesheet checkbox initial state
+        // Show/hide column selector based on initial checkbox state
         toggleTimesheetColumns(document.getElementById('append_timesheet').checked);
 
-        // Simple invoice live total preview
+        // Client rates injected from server
         const clientRates = {{ client_rates | tojson }};
 
         function updateSimpleTotal() {
             const client = document.getElementById('simple_client').value;
-            const hours  = parseFloat(document.getElementById('simple_hours').value) || 0;
-            const el     = document.getElementById('simple_total_preview');
-            if (client && clientRates[client] && hours > 0) {
-                const rate     = clientRates[client].hourly_rate;
-                const currency = clientRates[client].currency;
-                el.textContent = currency + ' ' + (hours * rate).toFixed(2);
-            } else {
+            const el = document.getElementById('simple_total_preview');
+            if (!client || !clientRates[client]) {
                 el.textContent = '—';
+                return;
             }
+            const rate = clientRates[client].hourly_rate;
+            const currency = clientRates[client].currency;
+            let total = 0;
+            document.querySelectorAll('#invoice-rows input[name="simple_hours[]"]').forEach(inp => {
+                const h = parseFloat(inp.value);
+                if (h > 0) total += h;
+            });
+            el.textContent = total > 0 ? currency + ' ' + (total * rate).toFixed(2) : '—';
         }
 
+        function updateDeleteButtons() {
+            const rows = document.querySelectorAll('#invoice-rows .invoice-row');
+            const show = rows.length > 1;
+            rows.forEach(row => {
+                row.querySelector('.delete-btn').style.display = show ? '' : 'none';
+            });
+        }
+
+        function addRow() {
+            const container = document.getElementById('invoice-rows');
+            const div = document.createElement('div');
+            div.className = 'invoice-row';
+            div.innerHTML =
+                '<input type="number" name="simple_hours[]" min="0" step="0.25" placeholder="0.00">' +
+                '<textarea name="simple_description[]" rows="2" placeholder="Description..."></textarea>' +
+                '<button type="button" class="delete-btn" onclick="deleteRow(this)">✕</button>';
+            div.querySelector('input').addEventListener('input', updateSimpleTotal);
+            container.appendChild(div);
+            updateDeleteButtons();
+        }
+
+        function deleteRow(btn) {
+            btn.closest('.invoice-row').remove();
+            updateDeleteButtons();
+            updateSimpleTotal();
+        }
+
+        // Attach listeners to the initial row
+        document.querySelector('#invoice-rows input[name="simple_hours[]"]').addEventListener('input', updateSimpleTotal);
         document.getElementById('simple_client').addEventListener('change', updateSimpleTotal);
-        document.getElementById('simple_hours').addEventListener('input', updateSimpleTotal);
     </script>
 </body>
 
