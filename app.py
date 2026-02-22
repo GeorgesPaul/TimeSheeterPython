@@ -19,18 +19,19 @@ app.config['SECRET_KEY'] = 'your_secret_key_here'
 with open('clients.yaml', 'r') as file:
     clients_data = yaml.safe_load(file)
 
-# All possible timesheet columns: (DataFrame column name, form field name)
+# All possible timesheet columns: (DataFrame column name, form field name, fixed PDF width)
+# Width is sized to fit header text without wrapping at 9pt Arial; None = Description takes remaining space.
 TIMESHEET_COLUMNS = [
-    ('Date',           'col_date'),
-    ('Day_total',      'col_day_total'),
-    ('Day',            'col_day'),
-    ('Start_time',     'col_start_time'),
-    ('End_time',       'col_end_time'),
-    ('Duration',       'col_duration'),
-    ('Week_total',     'col_week_total'),
-    ('Week_nr',        'col_week_nr'),
-    ('Week_duration',  'col_week_duration'),
-    ('Description',    'col_description'),
+    ('Date',          'col_date',          '2.3cm'),
+    ('Day_total',     'col_day_total',      '2.0cm'),
+    ('Day',           'col_day',            '1.0cm'),
+    ('Start_time',    'col_start_time',     '2.3cm'),
+    ('End_time',      'col_end_time',       '2.1cm'),
+    ('Duration',      'col_duration',       '2.0cm'),
+    ('Week_total',    'col_week_total',     '2.2cm'),
+    ('Week_nr',       'col_week_nr',        '1.7cm'),
+    ('Week_duration', 'col_week_duration',  '2.6cm'),
+    ('Description',   'col_description',    None),
 ]
 
 class DateForm(FlaskForm):
@@ -144,11 +145,13 @@ def index():
 
                 try:
                     if form.append_timesheet.data:
-                        # Build filtered timesheet DataFrame based on selected columns
-                        selected_cols = [
-                            col for col, field_name in TIMESHEET_COLUMNS
+                        # Build filtered column list (name, width) based on selected checkboxes
+                        selected_col_info = [
+                            (col, width) for col, field_name, width in TIMESHEET_COLUMNS
                             if getattr(form, field_name).data and col in timesheet.time_sheet_df.columns
-                        ] or list(timesheet.time_sheet_df.columns)
+                        ] or [(col, width) for col, _, width in TIMESHEET_COLUMNS
+                              if col in timesheet.time_sheet_df.columns]
+                        selected_cols = [col for col, _ in selected_col_info]
                         filtered_df = timesheet.time_sheet_df[selected_cols]
 
                         # Generate invoice PDF in memory (portrait)
@@ -164,7 +167,8 @@ def index():
                             client_name=client_name,
                             first_day=first_day,
                             last_day=last_day,
-                            timesheet_table=filtered_df.to_html(index=False, border=0, classes='timesheet-table'),
+                            timesheet_cols=[{'name': col, 'width': width} for col, width in selected_col_info],
+                            timesheet_rows=filtered_df.fillna('').values.tolist(),
                         )
                         timesheet_buffer = io.BytesIO()
                         status2 = pisa.CreatePDF(timesheet_pdf_html, dest=timesheet_buffer, encoding='utf-8')

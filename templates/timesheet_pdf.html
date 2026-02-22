@@ -37,20 +37,36 @@
         table.timesheet-table th {
             background-color: #f0f0f0;
             font-weight: bold;
-            white-space: nowrap;
-        }
-
-        /* Let description column wrap */
-        table.timesheet-table td:last-child {
-            word-wrap: break-word;
-            -pdf-word-wrap: break-word;
         }
     </style>
 </head>
 
 <body>
     <h2>Timesheet &mdash; {{ client_name }} ({{ first_day }} to {{ last_day }})</h2>
-    {{ timesheet_table | safe }}
+    <table class="timesheet-table">
+        <thead>
+            <tr>
+                {% for col in timesheet_cols %}
+                <th{% if col.width %} style="width: {{ col.width }}; white-space: nowrap;"{% endif %}>
+                    {{- col.name.replace('_', ' ') -}}
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in timesheet_rows %}
+            <tr>
+                {% for cell in row %}
+                {% if timesheet_cols[loop.index0].width %}
+                <td style="white-space: nowrap;">{{ cell }}</td>
+                {% else %}
+                <td style="word-wrap: break-word; -pdf-word-wrap: break-word;">{{ cell }}</td>
+                {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 
 </html>
