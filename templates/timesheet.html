@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timesheet Generator</title>
+    <title>Invoice &amp; Timesheet Generator</title>
     <style>
         body {
             transition: background-color 0.3s, color 0.3s;
@@ -12,91 +12,64 @@
             font-family: Arial, sans-serif;
         }
 
-        body.dark-mode {
-            background-color: #121212;
-            color: #e0e0e0;
-        }
-
-        body.dark-mode table {
-            color: #e0e0e0;
-        }
-
+        /* ── Dark mode ── */
+        body.dark-mode { background-color: #121212; color: #e0e0e0; }
+        body.dark-mode table { color: #e0e0e0; }
         body.dark-mode input,
-        body.dark-mode select {
-            background-color: #333;
-            color: #fff;
-            border: 1px solid #555;
-        }
-
+        body.dark-mode select { background-color: #333; color: #fff; border: 1px solid #555; }
         body.dark-mode input[type="submit"],
-        body.dark-mode button {
-            background-color: #444;
-            color: #fff;
-            border-color: #666;
-            cursor: pointer;
-        }
+        body.dark-mode button { background-color: #444; color: #fff; border-color: #666; cursor: pointer; }
+        body.dark-mode textarea { background-color: #333; color: #fff; border: 1px solid #555; }
+        body.dark-mode .section-box { border-color: #555; }
+        body.dark-mode .shared-bar { border-color: #555; background-color: #1e1e1e; }
+        body.dark-mode #timesheet-columns { border-color: #555; }
 
-        body.dark-mode textarea {
-            background-color: #333;
-            color: #fff;
-            border: 1px solid #555;
-        }
+        /* ── Theme toggle ── */
+        .theme-switch-wrapper { display: flex; align-items: center; margin-bottom: 12px; }
 
-        body.dark-mode .simple-invoice-box {
-            border-color: #555;
-        }
-
-        body.dark-mode #timesheet-columns {
-            border-color: #555;
-        }
-
-        .theme-switch-wrapper {
+        /* ── Shared bar at top ── */
+        .shared-bar {
             display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .shared-fields {
+            align-items: flex-end;
+            gap: 24px;
+            padding: 12px 16px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            background-color: #f9f9f9;
             margin-bottom: 16px;
+            flex-wrap: wrap;
         }
 
-        .shared-fields .field-group {
-            display: inline-block;
-            margin-right: 24px;
-            vertical-align: top;
-        }
+        .shared-bar .field-group { display: flex; flex-direction: column; gap: 3px; }
+        .shared-bar label { font-weight: bold; font-size: 0.9em; }
 
-        .shared-fields label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 2px;
-        }
-
+        /* ── Two-column layout ── */
         .main-layout {
             display: flex;
             align-items: flex-start;
-            gap: 32px;
+            gap: 16px;
         }
 
-        .timesheet-section {
-            flex: 0 0 auto;
-        }
-
-        .simple-invoice-box {
-            margin-left: auto;
-            flex: 0 0 auto;
-            min-width: 400px;
+        /* ── Section boxes ── */
+        .section-box {
+            flex: 1;
             border: 1px solid #aaa;
             border-radius: 4px;
             padding: 14px 18px;
         }
 
-        .simple-invoice-box h3 {
-            margin: 0 0 12px 0;
+        .section-box h3 {
+            margin: 0 0 14px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #ccc;
         }
 
+        body.dark-mode .section-box h3 { border-bottom-color: #444; }
+
+        .section-box p { margin: 8px 0; }
+
+        /* ── Timesheet column selector ── */
         #timesheet-columns {
-            margin-left: 20px;
             margin-top: 6px;
             padding: 10px 14px;
             border: 1px solid #aaa;
@@ -104,21 +77,11 @@
             display: inline-block;
         }
 
-        #timesheet-columns legend {
-            font-weight: bold;
-            padding: 0 4px;
-        }
+        #timesheet-columns legend { font-weight: bold; padding: 0 4px; }
+        #timesheet-columns label { display: inline-block; min-width: 120px; }
+        #timesheet-columns .col-row { display: inline-block; margin: 2px 8px 2px 0; }
 
-        #timesheet-columns label {
-            display: inline-block;
-            min-width: 120px;
-        }
-
-        #timesheet-columns .col-row {
-            display: inline-block;
-            margin: 2px 8px 2px 0;
-        }
-
+        /* ── Simple invoice rows ── */
         .invoice-row-headers {
             display: flex;
             gap: 8px;
@@ -127,14 +90,8 @@
             font-weight: bold;
         }
 
-        .invoice-row-headers .hdr-hours {
-            width: 72px;
-            flex-shrink: 0;
-        }
-
-        .invoice-row-headers .hdr-desc {
-            flex: 1;
-        }
+        .invoice-row-headers .hdr-hours { width: 72px; flex-shrink: 0; }
+        .invoice-row-headers .hdr-desc { flex: 1; }
 
         .invoice-row {
             display: flex;
@@ -143,16 +100,8 @@
             margin-bottom: 6px;
         }
 
-        .invoice-row input[type="number"] {
-            width: 72px;
-            flex-shrink: 0;
-        }
-
-        .invoice-row textarea {
-            flex: 1;
-            resize: vertical;
-            min-height: 36px;
-        }
+        .invoice-row input[type="number"] { width: 72px; flex-shrink: 0; }
+        .invoice-row textarea { flex: 1; resize: vertical; min-height: 36px; }
 
         .invoice-row .delete-btn {
             cursor: pointer;
@@ -166,14 +115,8 @@
             flex-shrink: 0;
         }
 
-        .add-row-btn {
-            margin-top: 4px;
-            cursor: pointer;
-        }
-
-        #simple_total_preview {
-            font-weight: bold;
-        }
+        .add-row-btn { margin-top: 4px; cursor: pointer; }
+        #simple_total_preview { font-weight: bold; }
     </style>
 </head>
 
@@ -188,31 +131,31 @@
     <form method="POST">
         {{ form.hidden_tag() }}
 
-        <!-- Shared fields: invoice date + invoice number -->
-        <div class="shared-fields">
-            <span class="field-group">
+        <!-- ── Shared settings ── -->
+        <div class="shared-bar">
+            <div class="field-group">
                 {{ form.invoice_date.label }}
                 {{ form.invoice_date() }}
-            </span>
-            <span class="field-group">
+            </div>
+            <div class="field-group">
                 {{ form.invoice_number.label }}
                 {{ form.invoice_number(size=14) }}
-            </span>
+            </div>
         </div>
 
-        <!-- Two-column layout -->
+        <!-- ── Side-by-side sections ── -->
         <div class="main-layout">
 
             <!-- Left: Timesheet Invoice -->
-            <div class="timesheet-section">
+            <div class="section-box">
                 <h3>Timesheet Invoice</h3>
-                <p>{{ form.start_date.label }}<br> {{ form.start_date() }}</p>
-                <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
-                <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
-                <p>{{ form.week_totals.label }} {{ form.week_totals() }}</p>
+                <p>{{ form.start_date.label }}<br>{{ form.start_date() }}</p>
+                <p>{{ form.end_date.label }}<br>{{ form.end_date() }}</p>
+                <p>{{ form.clients.label }}<br>{{ form.clients() }}</p>
+                <p>{{ form.week_totals() }} {{ form.week_totals.label }}</p>
                 <p>
-                    {{ form.append_timesheet.label }}
                     {{ form.append_timesheet(onchange='toggleTimesheetColumns(this.checked)') }}
+                    {{ form.append_timesheet.label }}
                 </p>
                 <fieldset id="timesheet-columns">
                     <legend>Columns to include</legend>
@@ -229,13 +172,13 @@
                     <span class="col-row">{{ form.col_week_duration() }} {{ form.col_week_duration.label }}</span>
                     <span class="col-row">{{ form.col_week_total() }} {{ form.col_week_total.label }}</span>
                 </fieldset>
-                <p>{{ form.submit() }}</p>
+                <p style="margin-top: 14px;">{{ form.submit() }}</p>
             </div>
 
             <!-- Right: Simple Invoice -->
-            <div class="simple-invoice-box">
+            <div class="section-box">
                 <h3>Simple Invoice</h3>
-                <p>{{ form.simple_client.label }}<br> {{ form.simple_client() }}</p>
+                <p>{{ form.simple_client.label }}<br>{{ form.simple_client() }}</p>
 
                 <div class="invoice-row-headers">
                     <span class="hdr-hours">Hours</span>
@@ -295,7 +238,6 @@
             }
         }
 
-        // On load: restore theme
         const currentTheme = localStorage.getItem('theme');
         if (currentTheme !== 'light') {
             document.body.classList.add('dark-mode');
@@ -303,19 +245,14 @@
             localStorage.setItem('theme', 'dark');
         }
 
-        // Show/hide column selector based on initial checkbox state
         toggleTimesheetColumns(document.getElementById('append_timesheet').checked);
 
-        // Client rates injected from server
         const clientRates = {{ client_rates | tojson }};
 
         function updateSimpleTotal() {
             const client = document.getElementById('simple_client').value;
             const el = document.getElementById('simple_total_preview');
-            if (!client || !clientRates[client]) {
-                el.textContent = '—';
-                return;
-            }
+            if (!client || !clientRates[client]) { el.textContent = '—'; return; }
             const rate = clientRates[client].hourly_rate;
             const currency = clientRates[client].currency;
             let total = 0;
@@ -329,9 +266,7 @@
         function updateDeleteButtons() {
             const rows = document.querySelectorAll('#invoice-rows .invoice-row');
             const show = rows.length > 1;
-            rows.forEach(row => {
-                row.querySelector('.delete-btn').style.display = show ? '' : 'none';
-            });
+            rows.forEach(row => { row.querySelector('.delete-btn').style.display = show ? '' : 'none'; });
         }
 
         function addRow() {
@@ -353,7 +288,6 @@
             updateSimpleTotal();
         }
 
-        // Attach listeners to the initial row
         document.querySelector('#invoice-rows input[name="simple_hours[]"]').addEventListener('input', updateSimpleTotal);
         document.getElementById('simple_client').addEventListener('change', updateSimpleTotal);
     </script>
