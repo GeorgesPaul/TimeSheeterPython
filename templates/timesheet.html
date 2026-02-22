@@ -36,6 +36,34 @@
             align-items: center;
             margin-bottom: 15px;
         }
+
+        #timesheet-columns {
+            margin-left: 20px;
+            margin-top: 6px;
+            padding: 10px 14px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        #timesheet-columns legend {
+            font-weight: bold;
+            padding: 0 4px;
+        }
+
+        #timesheet-columns label {
+            display: inline-block;
+            min-width: 120px;
+        }
+
+        #timesheet-columns .col-row {
+            display: inline-block;
+            margin: 2px 8px 2px 0;
+        }
+
+        body.dark-mode #timesheet-columns {
+            border-color: #555;
+        }
     </style>
 </head>
 
@@ -52,7 +80,25 @@
         <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
         <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
         <p>{{ form.week_totals.label }} {{ form.week_totals() }}</p>
-        <p>{{ form.append_timesheet.label }} {{ form.append_timesheet() }}</p>
+        <p>
+            {{ form.append_timesheet.label }}
+            {{ form.append_timesheet(onchange='toggleTimesheetColumns(this.checked)') }}
+        </p>
+        <fieldset id="timesheet-columns">
+            <legend>Columns to include</legend>
+            <span class="col-row">{{ form.col_date() }} {{ form.col_date.label }}</span>
+            <span class="col-row">{{ form.col_duration() }} {{ form.col_duration.label }}</span>
+            <span class="col-row">{{ form.col_description() }} {{ form.col_description.label }}</span>
+            <br>
+            <span class="col-row">{{ form.col_start_time() }} {{ form.col_start_time.label }}</span>
+            <span class="col-row">{{ form.col_end_time() }} {{ form.col_end_time.label }}</span>
+            <span class="col-row">{{ form.col_day() }} {{ form.col_day.label }}</span>
+            <span class="col-row">{{ form.col_day_total() }} {{ form.col_day_total.label }}</span>
+            <br>
+            <span class="col-row">{{ form.col_week_nr() }} {{ form.col_week_nr.label }}</span>
+            <span class="col-row">{{ form.col_week_duration() }} {{ form.col_week_duration.label }}</span>
+            <span class="col-row">{{ form.col_week_total() }} {{ form.col_week_total.label }}</span>
+        </fieldset>
         <p>{{ form.submit() }}</p>
     </form>
 
@@ -67,6 +113,10 @@
     {% endfor %}
     {% endif %}
     <script>
+        function toggleTimesheetColumns(show) {
+            document.getElementById('timesheet-columns').style.display = show ? 'inline-block' : 'none';
+        }
+
         function toggleTheme(isDark) {
             if (isDark) {
                 document.body.classList.add('dark-mode');
@@ -85,6 +135,9 @@
             document.getElementById('theme-checkbox').checked = true;
             localStorage.setItem('theme', 'dark');
         }
+
+        // Show/hide column selector based on append_timesheet checkbox initial state
+        toggleTimesheetColumns(document.getElementById('append_timesheet').checked);
     </script>
 </body>
 

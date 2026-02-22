@@ -6,8 +6,10 @@ from dateutil.parser import parse
 from datetime import datetime, timedelta
 import subprocess
 import os
+import io
 from TimeSheeter import TimesheetGenerator
 from xhtml2pdf import pisa
+from pypdf import PdfWriter, PdfReader
 import yaml
 
 app = Flask(__name__)
@@ -17,12 +19,37 @@ app.config['SECRET_KEY'] = 'your_secret_key_here'
 with open('clients.yaml', 'r') as file:
     clients_data = yaml.safe_load(file)
 
+# All possible timesheet columns: (DataFrame column name, form field name)
+TIMESHEET_COLUMNS = [
+    ('Date',           'col_date'),
+    ('Day_total',      'col_day_total'),
+    ('Day',            'col_day'),
+    ('Start_time',     'col_start_time'),
+    ('End_time',       'col_end_time'),
+    ('Duration',       'col_duration'),
+    ('Week_total',     'col_week_total'),
+    ('Week_nr',        'col_week_nr'),
+    ('Week_duration',  'col_week_duration'),
+    ('Description',    'col_description'),
+]
+
 class DateForm(FlaskForm):
     start_date = DateField('Start Date', format='%Y-%m-%d', validators=[DataRequired()])
     end_date = DateField('End Date', format='%Y-%m-%d', validators=[DataRequired()])
     clients = SelectMultipleField('Clients', choices=[], render_kw={'size': 10}, validators=[DataRequired()])
     week_totals = BooleanField('Include Week Totals', default=True, render_kw={'checked': True})
     append_timesheet = BooleanField('Append Timesheet to Invoice PDF', default=True, render_kw={'checked': True})
+    # Timesheet column selection (shown when append_timesheet is checked)
+    col_date          = BooleanField('Date',           default=True)
+    col_day_total     = BooleanField('Day Total')
+    col_day           = BooleanField('Day')
+    col_start_time    = BooleanField('Start Time')
+    col_end_time      = BooleanField('End Time')
+    col_duration      = BooleanField('Duration',       default=True)
+    col_week_total    = BooleanField('Week Total')
+    col_week_nr       = BooleanField('Week Nr')
+    col_week_duration = BooleanField('Week Duration')
+    col_description   = BooleanField('Description',    default=True)
     submit = SubmitField('Generate Timesheet and Invoice')
 
 @app.route('/', methods=['GET', 'POST'])
@@ -105,8 +132,6 @@ def index():
                     'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
                     'total_amount': f'{currency} {total_price:.2f}',
                     'logo_path': logo_path,
-                    'append_timesheet': form.append_timesheet.data,
-                    'timesheet_table': timesheet.time_sheet_df.to_html(index=False, border=0, classes='items timesheet-table'),
                     'first_day': first_day,
                     'last_day': last_day,
                 }
@@ -117,21 +142,53 @@ def index():
                 # Define PDF path
                 pdf_path = f'invoice_{client_name}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf'
 
-                # Convert HTML to PDF
                 try:
-                    with open(pdf_path, "w+b") as pdf_file:
-                        # Convert HTML to PDF
-                        pisa_status = pisa.CreatePDF(
-                            invoice_html,                # the HTML to convert
-                            dest=pdf_file,               # the output file
-                            encoding='utf-8'             # encoding of the HTML
+                    if form.append_timesheet.data:
+                        # Build filtered timesheet DataFrame based on selected columns
+                        selected_cols = [
+                            col for col, field_name in TIMESHEET_COLUMNS
+                            if getattr(form, field_name).data and col in timesheet.time_sheet_df.columns
+                        ] or list(timesheet.time_sheet_df.columns)
+                        filtered_df = timesheet.time_sheet_df[selected_cols]
+
+                        # Generate invoice PDF in memory (portrait)
+                        invoice_buffer = io.BytesIO()
+                        status1 = pisa.CreatePDF(invoice_html, dest=invoice_buffer, encoding='utf-8')
+                        if status1.err:
+                            return render_template('timesheet.html',
+                                               error=f"Error generating PDF invoice for {client_name}.",
+                                               form=form)
+
+                        # Generate timesheet PDF in memory (landscape)
+                        timesheet_pdf_html = render_template('timesheet_pdf.html',
+                            client_name=client_name,
+                            first_day=first_day,
+                            last_day=last_day,
+                            timesheet_table=filtered_df.to_html(index=False, border=0, classes='timesheet-table'),
                         )
-                    
-                    # Check if PDF generation was successful
-                    if pisa_status.err:
-                        return render_template('timesheet.html',
-                                           error=f"Error generating PDF invoice for {client_name}.",
-                                           form=form)
+                        timesheet_buffer = io.BytesIO()
+                        status2 = pisa.CreatePDF(timesheet_pdf_html, dest=timesheet_buffer, encoding='utf-8')
+                        if status2.err:
+                            return render_template('timesheet.html',
+                                               error=f"Error generating timesheet PDF for {client_name}.",
+                                               form=form)
+
+                        # Merge invoice + timesheet PDFs
+                        invoice_buffer.seek(0)
+                        timesheet_buffer.seek(0)
+                        writer = PdfWriter()
+                        for reader in [PdfReader(invoice_buffer), PdfReader(timesheet_buffer)]:
+                            for page in reader.pages:
+                                writer.add_page(page)
+                        with open(pdf_path, 'wb') as f:
+                            writer.write(f)
+                    else:
+                        with open(pdf_path, 'w+b') as pdf_file:
+                            pisa_status = pisa.CreatePDF(invoice_html, dest=pdf_file, encoding='utf-8')
+                        if pisa_status.err:
+                            return render_template('timesheet.html',
+                                               error=f"Error generating PDF invoice for {client_name}.",
+                                               form=form)
 
                     # Open PDF file
                     if os.name == 'nt':  # Windows
