@@ -1,12 +1,15 @@
 from flask import Flask, render_template, request
 from flask_wtf import FlaskForm
-from wtforms import DateField, SubmitField, BooleanField, SelectMultipleField
-from wtforms.validators import DataRequired
+from wtforms import (DateField, SubmitField, BooleanField, SelectMultipleField,
+                     SelectField, FloatField, TextAreaField)
+from wtforms.validators import DataRequired, Optional
 from dateutil.parser import parse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import subprocess
 import os
 import io
+import json
+from markupsafe import Markup, escape
 from TimeSheeter import TimesheetGenerator
 from xhtml2pdf import pisa
 from pypdf import PdfWriter, PdfReader
@@ -35,6 +38,8 @@ TIMESHEET_COLUMNS = [
 ]
 
 class DateForm(FlaskForm):
+    invoice_date = DateField('Invoice Date', format='%Y-%m-%d',
+                             default=date.today, validators=[DataRequired()])
     start_date = DateField('Start Date', format='%Y-%m-%d', validators=[DataRequired()])
     end_date = DateField('End Date', format='%Y-%m-%d', validators=[DataRequired()])
     clients = SelectMultipleField('Clients', choices=[], render_kw={'size': 10}, validators=[DataRequired()])
@@ -52,17 +57,101 @@ class DateForm(FlaskForm):
     col_week_duration = BooleanField('Week Duration')
     col_description   = BooleanField('Description',    default=True)
     submit = SubmitField('Generate Timesheet and Invoice')
+    # Simple invoice fields
+    simple_client      = SelectField('Client', choices=[], validators=[Optional()])
+    simple_hours       = FloatField('Hours', validators=[Optional()],
+                                    render_kw={'type': 'number', 'step': '0.25',
+                                               'min': '0', 'placeholder': '0.00'})
+    simple_description = TextAreaField('Description', validators=[Optional()],
+                                       render_kw={'rows': '5',
+                                                  'placeholder': 'Description of services rendered...'})
+    simple_submit = SubmitField('Generate Simple Invoice')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = DateForm()
-    
+
     # Reload clients data dynamically to catch any changes
     with open('clients.yaml', 'r') as file:
         current_clients_data = yaml.safe_load(file)
-    
-    form.clients.choices = [(key, data.get('trade_name', key)) for key, data in current_clients_data.get('Clients', {}).items()]
 
+    client_choices = [(key, data.get('trade_name', key))
+                      for key, data in current_clients_data.get('Clients', {}).items()]
+    form.clients.choices = client_choices
+    form.simple_client.choices = [('', '— select client —')] + client_choices
+
+    client_rates = {
+        key: {'hourly_rate': float(data.get('hourly_rate', 90.0)),
+              'currency': data.get('currency', '€')}
+        for key, data in current_clients_data.get('Clients', {}).items()
+    }
+
+    def render(error=None, timesheets_data=None):
+        return render_template('timesheet.html', form=form,
+                               client_rates=client_rates,
+                               error=error, timesheets_data=timesheets_data)
+
+    # --- Simple invoice ---
+    if request.method == 'POST' and form.simple_submit.data:
+        inv_date     = form.invoice_date.data
+        client_key   = form.simple_client.data
+        hours        = form.simple_hours.data
+        desc_raw     = (form.simple_description.data or '').strip()
+
+        if not inv_date:
+            return render(error="Invoice date is required.")
+        if not client_key:
+            return render(error="Please select a client for the simple invoice.")
+        if not hours or hours <= 0:
+            return render(error="Please enter a valid number of hours.")
+
+        client_data = current_clients_data['Clients'].get(client_key)
+        if not client_data:
+            return render(error=f"Client '{client_key}' not found in clients.yaml.")
+
+        hourly_rate  = float(client_data.get('hourly_rate', 90.0))
+        currency     = client_data.get('currency', '€')
+        total_price  = hours * hourly_rate
+        price_str    = f"{hourly_rate:.2f}".replace('.', ',')
+        logo_path    = os.path.abspath('templates/logo.jpg')
+        # Preserve line breaks in the PDF description
+        desc_html    = escape(desc_raw).replace('\n', Markup('<br>'))
+
+        invoice_data = {
+            'client': client_data,
+            'invoice_date': inv_date.strftime('%d-%m-%Y'),
+            'due_date': (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
+            'reference': 'Georges Meinders',
+            'items': [{
+                'quantity': f'{hours:.2f} hours',
+                'description': desc_html,
+                'price': price_str,
+                'total': f'{total_price:.2f}',
+                'vat_rate': '0,00',
+            }],
+            'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
+            'total_amount': f'{currency} {total_price:.2f}',
+            'logo_path': logo_path,
+        }
+
+        invoice_html = render_template('invoice.html', **invoice_data)
+        pdf_path = f'invoice_{client_key}_{datetime.now().strftime("%Y%m%d%H%M%S")}.pdf'
+
+        try:
+            with open(pdf_path, 'w+b') as pdf_file:
+                status = pisa.CreatePDF(invoice_html, dest=pdf_file, encoding='utf-8')
+            if status.err:
+                return render(error=f"Error generating PDF for {client_key}.")
+            if os.name == 'nt':
+                os.startfile(pdf_path)
+            else:
+                subprocess.run(['xdg-open', pdf_path])
+        except Exception as e:
+            return render(error=f"Error generating simple invoice: {str(e)}")
+
+        return render()
+
+    # --- Timesheet invoice ---
     if form.validate_on_submit():
         start_date = form.start_date.data
         end_date = form.end_date.data
@@ -82,9 +171,7 @@ def index():
                 selected_clients=selected_clients
             )
         except Exception as e:
-            return render_template('timesheet.html',
-                                   error=f"Error generating timesheet: {str(e)}",
-                                   form=form)
+            return render(error=f"Error generating timesheet: {str(e)}")
 
         if timesheets:
             timesheets_data = []
@@ -118,10 +205,11 @@ def index():
                 total_price = total_hours_decimal * hourly_rate
                 price_str = f"{hourly_rate:.2f}".replace('.', ',')
 
+                inv_date = form.invoice_date.data
                 invoice_data = {
                     'client': client_data,
-                    'invoice_date': datetime.now().strftime('%d-%m-%Y'),
-                    'due_date': (datetime.now() + timedelta(days=30)).strftime('%d-%m-%Y'),
+                    'invoice_date': inv_date.strftime('%d-%m-%Y'),
+                    'due_date': (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
                     'reference': 'Georges Meinders',
                     'items': [{
                         'quantity': f'{total_hours_decimal:.2f} hours',
@@ -133,8 +221,6 @@ def index():
                     'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
                     'total_amount': f'{currency} {total_price:.2f}',
                     'logo_path': logo_path,
-                    'first_day': first_day,
-                    'last_day': last_day,
                 }
 
                 # Generate invoice HTML
@@ -158,9 +244,7 @@ def index():
                         invoice_buffer = io.BytesIO()
                         status1 = pisa.CreatePDF(invoice_html, dest=invoice_buffer, encoding='utf-8')
                         if status1.err:
-                            return render_template('timesheet.html',
-                                               error=f"Error generating PDF invoice for {client_name}.",
-                                               form=form)
+                            return render(error=f"Error generating PDF invoice for {client_name}.")
 
                         # Generate timesheet PDF in memory (landscape)
                         timesheet_pdf_html = render_template('timesheet_pdf.html',
@@ -173,9 +257,7 @@ def index():
                         timesheet_buffer = io.BytesIO()
                         status2 = pisa.CreatePDF(timesheet_pdf_html, dest=timesheet_buffer, encoding='utf-8')
                         if status2.err:
-                            return render_template('timesheet.html',
-                                               error=f"Error generating timesheet PDF for {client_name}.",
-                                               form=form)
+                            return render(error=f"Error generating timesheet PDF for {client_name}.")
 
                         # Merge invoice + timesheet PDFs
                         invoice_buffer.seek(0)
@@ -190,9 +272,7 @@ def index():
                         with open(pdf_path, 'w+b') as pdf_file:
                             pisa_status = pisa.CreatePDF(invoice_html, dest=pdf_file, encoding='utf-8')
                         if pisa_status.err:
-                            return render_template('timesheet.html',
-                                               error=f"Error generating PDF invoice for {client_name}.",
-                                               form=form)
+                            return render(error=f"Error generating PDF invoice for {client_name}.")
 
                     # Open PDF file
                     if os.name == 'nt':  # Windows
@@ -202,9 +282,7 @@ def index():
 
                 except Exception as e:
                     print(f"Error generating PDF for {client_name}: {str(e)}")
-                    return render_template('timesheet.html',
-                                       error=f"Error generating PDF for {client_name}: {str(e)}",
-                                       form=form)
+                    return render(error=f"Error generating PDF for {client_name}: {str(e)}")
 
                 timesheets_data.append({
                     'client_name': client_name,
@@ -213,15 +291,11 @@ def index():
                 })
 
             # Return the timesheet view
-            return render_template('timesheet.html',
-                               timesheets_data=timesheets_data,
-                               form=form)
+            return render(timesheets_data=timesheets_data)
         else:
-            return render_template('timesheet.html',
-                               error="No timesheets generated.",
-                               form=form)
+            return render(error="No timesheets generated.")
 
-    return render_template('timesheet.html', form=form)
+    return render()
 
 if __name__ == '__main__':
     app.run(debug=True)

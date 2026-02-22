@@ -31,6 +31,32 @@
             cursor: pointer;
         }
 
+        body.dark-mode textarea {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+        }
+
+        .simple-invoice-section {
+            margin-top: 24px;
+            padding: 14px 18px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .simple-invoice-section h3 {
+            margin: 0 0 12px 0;
+        }
+
+        #simple_total_preview {
+            font-weight: bold;
+        }
+
+        body.dark-mode .simple-invoice-section {
+            border-color: #555;
+        }
+
         .theme-switch-wrapper {
             display: flex;
             align-items: center;
@@ -76,6 +102,7 @@
     <h2>Timesheet Generator</h2>
     <form method="POST">
         {{ form.hidden_tag() }}
+        <p>{{ form.invoice_date.label }}<br> {{ form.invoice_date() }}</p>
         <p>{{ form.start_date.label }}<br> {{ form.start_date() }}</p>
         <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
         <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
@@ -100,6 +127,18 @@
             <span class="col-row">{{ form.col_week_total() }} {{ form.col_week_total.label }}</span>
         </fieldset>
         <p>{{ form.submit() }}</p>
+
+        <div class="simple-invoice-section">
+            <h3>Simple Invoice</h3>
+            <p>{{ form.simple_client.label }}<br> {{ form.simple_client() }}</p>
+            <p>
+                {{ form.simple_hours.label }}<br>
+                {{ form.simple_hours() }}
+            </p>
+            <p>Total: <span id="simple_total_preview">—</span></p>
+            <p>{{ form.simple_description.label }}<br> {{ form.simple_description() }}</p>
+            <p>{{ form.simple_submit() }}</p>
+        </div>
     </form>
 
     {% if error %}
@@ -138,6 +177,25 @@
 
         // Show/hide column selector based on append_timesheet checkbox initial state
         toggleTimesheetColumns(document.getElementById('append_timesheet').checked);
+
+        // Simple invoice live total preview
+        const clientRates = {{ client_rates | tojson }};
+
+        function updateSimpleTotal() {
+            const client = document.getElementById('simple_client').value;
+            const hours  = parseFloat(document.getElementById('simple_hours').value) || 0;
+            const el     = document.getElementById('simple_total_preview');
+            if (client && clientRates[client] && hours > 0) {
+                const rate     = clientRates[client].hourly_rate;
+                const currency = clientRates[client].currency;
+                el.textContent = currency + ' ' + (hours * rate).toFixed(2);
+            } else {
+                el.textContent = '—';
+            }
+        }
+
+        document.getElementById('simple_client').addEventListener('change', updateSimpleTotal);
+        document.getElementById('simple_hours').addEventListener('input', updateSimpleTotal);
     </script>
 </body>
 
