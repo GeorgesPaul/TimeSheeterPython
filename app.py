@@ -22,6 +22,7 @@ class DateForm(FlaskForm):
     end_date = DateField('End Date', format='%Y-%m-%d', validators=[DataRequired()])
     clients = SelectMultipleField('Clients', choices=[], render_kw={'size': 10}, validators=[DataRequired()])
     week_totals = BooleanField('Include Week Totals', default=True, render_kw={'checked': True})
+    append_timesheet = BooleanField('Append Timesheet to Invoice PDF', default=True, render_kw={'checked': True})
     submit = SubmitField('Generate Timesheet and Invoice')
 
 @app.route('/', methods=['GET', 'POST'])
@@ -104,6 +105,10 @@ def index():
                     'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
                     'total_amount': f'{currency} {total_price:.2f}',
                     'logo_path': logo_path,
+                    'append_timesheet': form.append_timesheet.data,
+                    'timesheet_table': timesheet.time_sheet_df.to_html(index=False, border=0, classes='items timesheet-table'),
+                    'first_day': first_day,
+                    'last_day': last_day,
                 }
 
                 # Generate invoice HTML
