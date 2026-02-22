@@ -11,16 +11,22 @@
     <h2>Timesheet Generator</h2>
     <form method="POST">
         {{ form.hidden_tag() }}
-        {{ form.start_date.label }} {{ form.start_date() }}
-        {{ form.end_date.label }} {{ form.end_date() }}
-        {{ form.week_totals.label }} {{ form.week_totals() }}
-        {{ form.submit() }}
+        <p>{{ form.start_date.label }}<br> {{ form.start_date() }}</p>
+        <p>{{ form.end_date.label }}<br> {{ form.end_date() }}</p>
+        <p>{{ form.clients.label }}<br> {{ form.clients() }}</p>
+        <p>{{ form.week_totals.label }} {{ form.week_totals() }}</p>
+        <p>{{ form.submit() }}</p>
     </form>
-    {% if client_name %}
-    <h3>Timesheet for {{ client_name }} ({{ total_hours }})</h3>
+
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
     {% endif %}
-    {% if table %}
-    {{ table|safe }}
+
+    {% if timesheets_data %}
+    {% for ts in timesheets_data %}
+    <h3>Timesheet for {{ ts.client_name }} ({{ ts.total_hours }})</h3>
+    {{ ts.table|safe }}
+    {% endfor %}
     {% endif %}
 </body>
 

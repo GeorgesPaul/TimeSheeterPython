@@ -144,21 +144,20 @@ class TimesheetGenerator:
             out_list.extend([word for word in input_str.split() if word.lower().startswith(tag)])
         return list(set(out_list))
 
-    @staticmethod
-    def get_client_tag_dict(tag_list, client_list):
+    def get_client_tag_dict(self, tag_list, client_list):
         client_list.sort(key=len)
         out_dct = {}
         for tag in tag_list:
             for client in client_list:
-                if tag[1:].lower() in client.lower():
+                alias = self.yaml_data['Clients'].get(client, {}).get('alias_tag', client)
+                if tag[1:].lower() in alias.lower():
                     if tag not in out_dct:
                         out_dct[tag] = client
                     break
         return out_dct
 
-    @staticmethod
-    def get_client_name_dict(tag_list, client_list):
-        client_tag_dict = TimesheetGenerator.get_client_tag_dict(tag_list, client_list)
+    def get_client_name_dict(self, tag_list, client_list):
+        client_tag_dict = self.get_client_tag_dict(tag_list, client_list)
         return {v: [k for k, val in client_tag_dict.items() if val == v] for v in client_tag_dict.values()}
 
     def process_events(self, events, client_list):
@@ -242,7 +241,7 @@ class TimesheetGenerator:
             'Description': [event_summary]
         })
 
-    def generate_timesheet(self, start_date, end_date, week_totals=False, output_format: OutputFormat = OutputFormat.TABLE):
+    def generate_timesheet(self, start_date, end_date, week_totals=False, output_format: OutputFormat = OutputFormat.TABLE, selected_clients=None):
         self.output_format = output_format
         
         # Set logging level based on output format
@@ -256,7 +255,8 @@ class TimesheetGenerator:
             logging.info("No events found between %s and %s", start_date, end_date)
             return []
 
-        time_sheets = self.process_events(events, self.client_list)
+        client_list_to_process = selected_clients if selected_clients else self.client_list
+        time_sheets = self.process_events(events, client_list_to_process)
 
         for sheet in time_sheets:
             self.add_totals_to_sheet(sheet, week_totals)
