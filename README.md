@@ -1,96 +1,151 @@
 # TimeSheeterPython
-Generates a timesheet based on Google Calendar events that contain "@clientname" in their description.
 
-# About:
-This script downloads Google calendar events, finds all events with a "@clientname" tag and generates a 
-time sheet table with: 
-`| Day of month | Start_time | End_time | Duration | Week_nr | Week_duration | Description`
+A web app that generates invoices and timesheets from Google Calendar events.
 
-Registering your worked hours could look something like the screenshot below. The @fake and @fake2 correspond to client name abbreviations.
-Full client names are stored in a clients.ini file (if the full name in the ini file is "Faker Client" it will automatically be matched to the @fake tag and Fake2fake to the @fake2 tag).
+- **Simple invoice** — fill in hours and a description in the browser, generate a PDF instantly. No Google Calendar needed.
+- **Timesheet invoice** — pulls worked hours from Google Calendar events tagged with `@clientname`, generates a timesheet and invoice PDF.
 
-![Example input](./images/example_input1.png)
+---
 
-The output can be a ascii table or a pdf based on a .docx template (work in progress).
-An example of the output (not corresponding to the above Google Calendar example): 
+## Quick start (simple invoice with dummy data)
 
-![Example output](./images/example_output1.png)
+### 1. Install dependencies
 
-# Setup: 
-
-To make this script work, install all dependencies in your python environment. 
-
-The first time you run this script a browser should pop up with a Google auth flow. 
-This should generate a token.pickle file in the same directory as this script. 
-
-You might have to fiddle around with settings in https://developers.google.com/calendar/ to allow your Google calendar to be accessed through the API.
-
-Important note: the ID of the calendar that will be used to generate the report is hard coded into 
-TimeSheeter.py at line 142 at the moment (sorry). Selection by calendar name is on my TODO list. 
-
-You can find this calendar ID when you go to google calendar (each calendar has it's own ID)
-Look for something like: 
-`CalID = 'xaop.com_g28392fnl23j23f23fh2jk@group.calendar.google.com'`
-
-# Usage: 
+Requires Python 3.10+. Using [uv](https://github.com/astral-sh/uv) (recommended):
 
 ```
-python TimeSheeter.py -h
-usage: TimeSheeter.py [-h] [-s START] [-e END] [-l] [-t] [-w] [-r]
-
-optional arguments:
-  -h, --help                show this help message and exit
-  -s START, --start START   Start date. Script will assume time of day 0:00:00 unless otherwise specified.
-  -e END, --end END         End date. Script will assume time of day 23:59:59 unless otherwise specified.
-  -l, --last                Generate time sheet for all of last month.
-  -t, --this                Generate time sheet for all of this month.
-  -w, --weektotals          Add week numbers and totals per week to report.
-  -r, --report              Generate a .pdf report based on the .docx template file in this directory.
+uv sync
 ```
 
-Example to generate a timesheet for all of last month: 
-```
-python TimeSheeter.py -l
-Getting gcal events between 2021-06-01T00:00:00.198112Z and 2021-06-30T23:59:59.198112Z
-The following @tag client name matches where made: {'Client name': ['@cli', '@clie', '@clien']}
-If you don't want a certain tag/client to be included, remove the client from client.ini file or add # in front of the client name.
-Generating time sheet for client: Client name
-
-Time sheet for client: Client name
-Total duration for cient was: 24 hours and 15 minutes.
-    |   Day | Start_time   | End_time   | Duration   |   Week_nr | Week_duration   | Description
-----+-------+--------------+------------+------------+-----------+-----------------+---------------------------------------
-  0 |    07 | 07:00        | 10:00      | 3:0        |        23 | 3 : 0           | this is some example work description
-  1 |    07 | 13:00        | 15:00      | 2:0        |        23 | 5 : 0           | this is some example work description
-  2 |    09 | 08:00        | 10:00      | 2:0        |        23 | 7 : 0           | this is some example work description
-  3 |    11 | 08:00        | 15:00      | 7:0        |        23 | 14 : 0          | this is some example work description
-  4 |    16 | 08:00        | 11:00      | 3:0        |        24 | 3 : 0           | this is some example work description
-  5 |    22 | 08:15        | 09:30      | 1:15       |        25 | 1 : 15          | testest
-  6 |    24 | 08:00        | 11:00      | 3:0        |        25 | 4 : 15          | this is some example work description
-  7 |    25 | 09:00        | 12:00      | 3:0        |        25 | 7 : 15          | blabla
+Or with pip:
 
 ```
+pip install flask flask-wtf google-api-python-client google-auth google-auth-oauthlib \
+            pandas pypdf python-dateutil pyyaml tabulate wtforms xhtml2pdf
+```
 
-Example to generate timesheet for custom period: 
-````
-python TimeSheeter.py -s 09-06-2021 -e 24-06-2021
-Getting gcal events between 2021-06-09T00:00:00Z and 2021-06-24T00:00:00Z
-The following @tag client name matches where made: {'Client name': ['@cli', '@clie']}
-If you don't want a certain tag/client to be included, remove the client from client.ini file or add # in front of the client name.
-Generating time sheet for client: Client name
+### 2. Set up config files
 
-Time sheet for client: Client name
-Total duration for cient was: 13 hours and 15 minutes.
-    |   Day | Start_time   | End_time   | Duration   |   Week_nr | Week_duration   | Description
-----+-------+--------------+------------+------------+-----------+-----------------+---------------------------------------
-  0 |    09 | 08:00        | 10:00      | 2:0        |        23 | 2 : 0           | this is some example work description
-  1 |    11 | 08:00        | 15:00      | 7:0        |        23 | 9 : 0           | this is some example work description
-  2 |    16 | 08:00        | 11:00      | 3:0        |        24 | 3 : 0           | this is some example work description
-  3 |    22 | 08:15        | 09:30      | 1:15       |        25 | 1 : 15          | testest
-````
+Copy the example files and rename them:
 
-#####TODO:
-* better auth flow without requiring dev console stuff
-* general code cleanup
-* add option to output straight to HTML, Word or Excel (with markup?)
-* add argparse for by Calendar name (and Cal ID lookup by calendar name) + add first calendar as default.
+| Example file | Rename to |
+|---|---|
+| `example_clients.yaml` | `clients.yaml` |
+| `templates/example_invoice_template.html` | `templates/invoice.html` |
+
+```
+cp example_clients.yaml clients.yaml
+cp templates/example_invoice_template.html templates/invoice.html
+```
+
+The example files contain dummy data for two fake clients so you can generate an invoice right away.
+
+### 3. Personalise your invoice template
+
+Open `templates/invoice.html` and replace the hardcoded seller details in the top-right block with your own:
+
+- Name and company/brand name
+- Address
+- VAT number
+- Email
+- IBAN, BIC/SWIFT, bank name
+
+### 4. Run the app
+
+```
+python app.py
+```
+
+Then open [http://localhost:5000](http://localhost:5000) in your browser.
+
+### 5. Generate a simple invoice
+
+1. Set an **Invoice Date**.
+2. Under **Simple Invoice**, select a client (e.g. *Acme Corporation B.V.*).
+3. Enter an invoice number, hours, and a description.
+4. Click **Generate Simple Invoice** — a PDF opens automatically.
+
+---
+
+## Timesheet invoice (Google Calendar)
+
+To generate invoices from your Google Calendar you need two additional files:
+
+### client_secrets.json
+
+Download your OAuth 2.0 credentials from the [Google Cloud Console](https://console.cloud.google.com/):
+
+1. Create a project and enable the **Google Calendar API**.
+2. Create an **OAuth 2.0 Client ID** (Desktop app).
+3. Download the JSON and save it as `client_secrets.json` in the project root.
+
+The first time you run the app and trigger a timesheet generation, a browser window will open for Google sign-in. This creates a `token.pickle` file so you only need to authenticate once.
+
+### config.ini
+
+Create `config.ini` in the project root:
+
+```ini
+[Google Calendar]
+CalID = your-calendar-id@group.calendar.google.com
+```
+
+Find your calendar ID in Google Calendar → Settings → select your calendar → scroll to *Integrate calendar*.
+
+### Tag your calendar events
+
+Add `@ClientKey` to the description of any Google Calendar event where `ClientKey` matches a key in `clients.yaml` (e.g. `@AcmeCorp`). The app matches tags to clients automatically.
+
+### Generate a timesheet invoice
+
+1. Set **Invoice Date**, **Start Date**, and **End Date**.
+2. Select one or more clients.
+3. Choose timesheet columns and whether to append the timesheet to the invoice PDF.
+4. Click **Generate Timesheet and Invoice**.
+
+---
+
+## clients.yaml structure
+
+Each client entry looks like this:
+
+```yaml
+Clients:
+  ClientKey:                          # used for @ClientKey tags in calendar events
+    alias_tag: Short name
+    registration_name: Legal Name B.V.
+    trade_name: Trade Name B.V.
+    hourly_rate: 123.00
+    currency: "&euro;"
+    vat_number: NL000000000B01
+    chamber_of_commerce_number: 00000000
+    invoice_address:
+      street_name: Example Street
+      house_number: 1
+      other_address_details:          # optional, e.g. "Floor 3" — leave blank if unused
+      postal_code: 1234 AB
+      city: Amsterdam
+      country: Netherlands
+    contact_person:
+      name: Jane Doe
+      email: jane@example.com
+      phone: +31600000000
+    invoice_email_address: finance@example.com
+    payment_terms_days: 14            # due date = invoice date + this many days
+```
+
+---
+
+## Files that are gitignored
+
+These files contain personal or sensitive data and are not committed to the repository:
+
+| File | Purpose |
+|---|---|
+| `clients.yaml` | Your real client data |
+| `templates/invoice.html` | Your invoice template with personal/banking details |
+| `config.ini` | Google Calendar ID |
+| `client_secrets.json` | Google OAuth credentials |
+| `token.pickle` | Google auth token (generated on first run) |
+
+Use the `example_*` files as starting points.

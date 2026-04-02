@@ -139,7 +139,7 @@ def index():
             'client':               client_data,
             'invoice_number':       invoice_num,
             'invoice_date':         inv_date.strftime('%d-%m-%Y'),
-            'due_date':             (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
+            'due_date':             (inv_date + timedelta(days=int(client_data.get('payment_terms_days', 30)))).strftime('%d-%m-%Y'),
             'reference':            'Georges Meinders',
             'items':                items,
             'vat_calculation_text': f'0.00% VAT on {currency} {total_price:.2f} = {currency} 0,00',
@@ -223,7 +223,7 @@ def index():
                     'client': client_data,
                     'invoice_number': form.invoice_number.data or '00000000000',
                     'invoice_date': inv_date.strftime('%d-%m-%Y'),
-                    'due_date': (inv_date + timedelta(days=30)).strftime('%d-%m-%Y'),
+                    'due_date': (inv_date + timedelta(days=int(client_data.get('payment_terms_days', 30)))).strftime('%d-%m-%Y'),
                     'reference': 'Georges Meinders',
                     'items': [{
                         'quantity': f'{total_hours_decimal:.2f} hours',

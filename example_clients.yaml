@@ -1,0 +1,47 @@
+# EXAMPLE FILE — rename this file to clients.yaml before running the app.
+# Replace all values below with your real client data.
+
+Clients:
+  AcmeCorp:
+    alias_tag: Acme
+    registration_name: Acme Corporation B.V.
+    trade_name: Acme Corporation B.V.
+    hourly_rate: 90.00
+    currency: "&euro;"
+    vat_number: NL000000000B01
+    chamber_of_commerce_number: 00000001
+    invoice_address:
+      street_name: Examplestreet
+      house_number: 1
+      other_address_details:
+      postal_code: 1234 AB
+      city: Amsterdam
+      country: Netherlands
+    contact_person:
+      name: Jane Doe
+      email: jane.doe@acmecorp.example
+      phone: +31600000001
+    invoice_email_address: finance@acmecorp.example
+    payment_terms_days: 14
+
+  GlobalWidgets:
+    alias_tag: GW
+    registration_name: Global Widgets Ltd.
+    trade_name: Global Widgets Ltd.
+    hourly_rate: 100.00
+    currency: "&euro;"
+    vat_number: NL000000000B02
+    chamber_of_commerce_number: 00000002
+    invoice_address:
+      street_name: Innovation Avenue
+      house_number: 99
+      other_address_details: Floor 3
+      postal_code: 5678 CD
+      city: Rotterdam
+      country: Netherlands
+    contact_person:
+      name: John Smith
+      email: john.smith@globalwidgets.example
+      phone: +31600000002
+    invoice_email_address: accounts@globalwidgets.example
+    payment_terms_days: 30
