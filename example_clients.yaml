@@ -6,7 +6,7 @@ Clients:
     alias_tag: Acme
     registration_name: Acme Corporation B.V.
     trade_name: Acme Corporation B.V.
-    hourly_rate: 90.00
+    hourly_rate: 123.00
     currency: "&euro;"
     vat_number: NL000000000B01
     chamber_of_commerce_number: 00000001
@@ -28,7 +28,7 @@ Clients:
     alias_tag: GW
     registration_name: Global Widgets Ltd.
     trade_name: Global Widgets Ltd.
-    hourly_rate: 100.00
+    hourly_rate: 112.00
     currency: "&euro;"
     vat_number: NL000000000B02
     chamber_of_commerce_number: 00000002
