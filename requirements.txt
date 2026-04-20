@@ -28,7 +28,7 @@ pathvalidate==2.4.1
 pc-ble-driver-py==0.11.4
 piccata==1.0.1
 Pillow==8.2.0
-protobuf==3.17.3
+protobuf==3.18.3
 pycparser==2.20
 pylifx==0.0.3
 pyparsing==2.4.7
