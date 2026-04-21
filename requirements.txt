@@ -43,6 +43,6 @@ pyusb==1.1.1
 PyYAML==4.2b4
 six==1.15.0
 tabulate==0.8.9
-tqdm==4.61.1
+tqdm==4.66.3
 typepy==1.1.2
 wrapt==1.12.1
